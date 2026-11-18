@@ -1,88 +1,97 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
+const express = require('express');
 const pino = require('pino');
-const readline = require('readline');
+const fs = require('fs');
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const question = (text) => new Promise((resolve) => rl.question(text, resolve));
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-async function startBot() {
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_darknode');
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+let pairingCodeGlobal = "Not Generated Yet";
+let botStatus = "Disconnected";
+
+async function startBot(phoneNumber, res) {
+    const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys');
     
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false, // QR code එක පෙන්වන එක off කර ඇත
-        auth: state
+        printQRInTerminal: false,
+        browser: Browsers.macOS("Chrome")
     });
 
-    // Pairing Code එක ලබා ගැනීම සඳහා අංකය ඇතුළත් කිරීම
     if (!sock.authState.creds.registered) {
-        const phoneNumber = await question('\n📱 Enter your WhatsApp phone number (with country code, e.g., 947xxxxxxxx): ');
-        await delay(3000);
-        try {
-            const code = await sock.requestPairingCode(phoneNumber.trim());
-            console.log(`\n========================================`);
-            console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
-            console.log(`========================================\n`);
-        } catch (error) {
-            console.error('Failed to get pairing code, please restart.', error);
+        if (phoneNumber) {
+            setTimeout(async () => {
+                let code = await sock.requestPairingCode(phoneNumber.trim());
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                pairingCodeGlobal = code;
+                botStatus = "Waiting for Pairing";
+                if (res && !res.headersSent) {
+                    res.json({ status: "success", code: code });
+                }
+            }, 3000);
         }
     }
 
-    sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) startBot();
-        } else if (connection === 'open') {
-            console.log('🤖 Dark_Node Bot 24/7 Online & Connected Successfully!');
-        }
-    });
-
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('messages.upsert', async m => {
-        const msg = m.messages[0];
-        if (!msg.message || msg.key.fromMe) return;
-
-        const sender = msg.key.remoteJid;
-        const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-
-        if (!text) return;
-        const cmd = text.toLowerCase();
-
-        if (cmd === '.menu' || cmd === 'hi' || cmd === 'hello' || cmd === 'menu') {
-            let menuCaption = `
-╭━━〔 **DARK_NODE BOT** 〕━━┈⊷
-┃ 👑 Owner : Venura Bashitha
-┃ ⚙️ Mode : PUBLIC
-┃ 🎛️ Prefix : .
-┃ 📢 Channel : https://whatsapp.com/channel/0029VbENCSjEgGkGzC5j5w2U
-╰━━━━━━━━━━━━━━━⊷
-
-👋 **සාදරයෙන් පිළිගනිමු! Dark_Node bot සේවාවට ඔබව සාදරයෙන් පිළිගනිමු.** 
-
-🔻 **SELECT CATEGORY BELOW**
-
-📥 \`.download\` - Download media & videos
-🎨 \`.logo\` - Generate stylish logos
-🎬 \`.movie\` - Movie status & clips
-🛠️ \`.tools\` - Useful utilities
-
-©️ **Created by Venura Bashitha**
-            `;
-
-            await sock.sendMessage(sender, { 
-                image: { url: 'https://i.ibb.co/108661/dark-node.jpg' }, 
-                caption: menuCaption 
-            });
-        }
-        else if (cmd === '.channel' || cmd === '.ch') {
-            await sock.sendMessage(sender, { 
-                text: '📢 **Join our official WhatsApp Channel:**\nhttps://whatsapp.com/channel/0029VbENCSjEgGkGzC5j5w2U\n\nඅලුත්ම updates ලබා ගැනීමට අපගේ channel එකோடு இணைந்திருங்கள்!' 
-            });
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'open') {
+            botStatus = "Connected Successfully!";
+            console.log('Bot Connected Successfully!');
+        } else if (connection === 'close') {
+            botStatus = "Disconnected";
+            let reason = lastDisconnect?.error?.output?.statusCode;
+            if (reason !== DisconnectReason.loggedOut) {
+                // Reconnect if needed
+            }
         }
     });
 }
 
-startBot();
+// Web UI for getting pairing code easily
+app.get('/', (req, res) => {
+    res.send(`
+        <html>
+        <head>
+            <title>Dark-Node-Bot Pairing</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 50px 20px; }
+                .card { background: #1e293b; padding: 30px; border-radius: 12px; max-width: 400px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+                input { width: 85%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 16px; }
+                button { background: #22c55e; color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; width: 90%; }
+                button:hover { background: #16a34a; }
+                .code-box { font-size: 24px; color: #38bdf8; font-weight: bold; margin-top: 20px; background: #0f172a; padding: 15px; border-radius: 6px; border: 1px dashed #38bdf8; }
+                .status { margin-top: 15px; font-size: 14px; color: #cbd5e1; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h2>Dark-Node-Bot Pairing</h2>
+                <form action="/pair" method="POST">
+                    <input type="text" name="phone" placeholder="Enter WhatsApp No (e.g. 9477xxxxxxx)" required /><br>
+                    <button type="submit">Get Pairing Code</button>
+                </form>
+                <div class="status">Status: ${botStatus}</div>
+                <div class="code-box">${pairingCodeGlobal}</div>
+            </div>
+        </body>
+        </html>
+    `);
+});
+
+app.post('/pair', async (req, res) => {
+    const phoneNumber = req.body.phone;
+    if (!phoneNumber) {
+        return res.send("Please enter a phone number!");
+    }
+    startBot(phoneNumber, res);
+});
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
