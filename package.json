@@ -1,14 +1,17 @@
+
 {
   "name": "dark-node-bot",
-  "version": "1.0.0",
-  "description": "WhatsApp Bot with Web Pairing",
+  "version": "2.0.0",
+  "description": "DARK-NODE-BOT PRO - WhatsApp Bot by Venura",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.9",
-    "express": "^4.19.2",
-    "pino": "^9.0.0"
+    "@whiskeysockets/baileys": "6.7.9",
+    "express": "4.19.2",
+    "pino": "9.0.0",
+    "qrcode-terminal": "0.12.0"
   }
 }
