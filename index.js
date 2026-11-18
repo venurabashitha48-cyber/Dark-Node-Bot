@@ -1,170 +1,403 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
-const express = require('express');
-const pino = require('pino');
+
+import express from "express";
+import makeWASocket, {
+  DisconnectReason,
+  useMultiFileAuthState
+} from "@whiskeysockets/baileys";
+import P from "pino";
+import qrcode from "qrcode-terminal";
+import fs from "fs";
+import path from "path";
+
+// =================================
+// DARK NODE BOT PRO CONFIGURATION
+// =================================
+
+const CONFIG = {
+  name: "DARK-NODE-BOT",
+  owner: "VENURA",
+  number: "94786585862",
+  channel: "https://whatsapp.com/channel/0029VbENCSjEgGfKGzoqxw2X",
+  domain: "https://dark-node-bot-production.up.railway.app",
+  prefix: "."
+};
+
+const PORT = process.env.PORT || 3000;
+const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./session");
+
+let botStatus = "STARTING";
+let connectedNumber = null;
+let startTime = Date.now();
+
+// =================================
+// WEB SERVER
+// =================================
 
 const app = express();
-const PORT = process.env.PORT || 8080;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.get("/", (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DARK NODE BOT PRO</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:#030807;color:#00ff88;
+ font-family:Arial,sans-serif;overflow-x:hidden;
+}
+canvas{position:fixed;inset:0;z-index:-1;opacity:.3}
+.container{max-width:850px;margin:auto;padding:25px 16px}
+header{text-align:center;padding:35px 10px}
+.logo{
+ font-size:45px;font-weight:900;
+ text-shadow:0 0 20px #00ff88;
+ animation:glow 2s infinite alternate;
+}
+@keyframes glow{
+ from{text-shadow:0 0 5px #00ff88}
+ to{text-shadow:0 0 30px #00ff88,0 0 50px #00ff88}
+}
+.subtitle{color:#8bffbd;letter-spacing:5px}
+.card{
+ background:rgba(0,20,12,.88);
+ border:1px solid #00ff8860;
+ border-radius:15px;padding:22px;
+ margin:18px 0;
+ box-shadow:0 0 20px #00ff8810;
+}
+h2{color:#00ff88}
+.status{font-size:20px;font-weight:bold}
+.dot{
+ display:inline-block;width:10px;height:10px;
+ border-radius:50%;background:#00ff88;
+ box-shadow:0 0 12px #00ff88;margin-right:8px;
+}
+.btn{
+ display:block;text-align:center;
+ padding:15px;margin-top:14px;
+ background:#00ff88;color:#001b10;
+ text-decoration:none;font-weight:bold;
+ border-radius:9px;transition:.3s;
+}
+.btn:hover{background:#fff;transform:scale(1.03)}
+.info{color:#b7e9cd;line-height:2}
+footer{text-align:center;color:#568a70;padding:30px}
+</style>
+</head>
+<body>
+<canvas id="matrix"></canvas>
+<div class="container">
+<header>
+<div class="logo">DARK-NODE</div>
+<div class="subtitle">BOT PRO SYSTEM</div>
+<p>⚡ ADVANCED WHATSAPP ASSISTANT ⚡</p>
+</header>
 
-let pairingCodeGlobal = "Not Generated Yet";
-let botStatus = "Ready to Hack / Pair";
+<div class="card">
+<h2> SYSTEM STATUS</h2>
+<p class="status"><span class="dot"></span><span id="status">CHECKING...</span></p>
+<p class="info">Server: <span id="server">ONLINE</span></p>
+<p class="info">Bot: DARK-NODE-BOT</p>
+<p class="info">Version: 2.0 PRO</p>
+</div>
 
-async function startBot(phoneNumber, res) {
-    try {
-        const { state, saveCreds } = await useMultiFileAuthState('./auth_info_baileys_' + Date.now());
-        
-        const sock = makeWASocket({
-            logger: pino({ level: 'silent' }),
-            printQRInTerminal: false,
-            browser: Browsers.macOS("Chrome")
-        });
+<div class="card">
+<h2> CREATOR PROFILE</h2>
+<p class="info">
+Name: VENURA<br>
+Role: BOT CREATOR<br>
+Bot: DARK-NODE-BOT<br>
+Country: Sri Lanka
+</p>
+</div>
 
-        if (!sock.authState.creds.registered) {
-            if (phoneNumber) {
-                // Wait 3 seconds for socket initialization
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                let code = await sock.requestPairingCode(phoneNumber.trim());
-                code = code?.match(/.{1,4}/g)?.join("-") || code;
-                pairingCodeGlobal = code;
-                botStatus = "Pairing Code Generated!";
-                if (res && !res.headersSent) {
-                    return res.json({ status: "success", code: code });
-                }
-            }
+<div class="card">
+<h2> WHATSAPP COMMUNITY</h2>
+<p class="info">Join our official WhatsApp Channel.</p>
+<a class="btn" href="${CONFIG.channel}" target="_blank">
+JOIN WHATSAPP CHANNEL
+</a>
+</div>
+
+<div class="card">
+<h2> BOT COMMANDS</h2>
+<p class="info">
+.menu - Show all commands<br>
+.ping - Check response<br>
+.alive - Bot status<br>
+.owner - Creator information<br>
+.about - About the bot<br>
+.channel - Channel invitation<br>
+.time - Sri Lanka time
+</p>
+</div>
+
+<footer>
+DARK-NODE-BOT PRO<br>
+CREATED BY VENURA<br>
+© 2026
+</footer>
+</div>
+
+<script>
+async function updateStatus(){
+ try{
+  const r=await fetch('/api/status');
+  const d=await r.json();
+  document.getElementById('status').textContent=d.bot;
+  document.getElementById('server').textContent=d.server;
+ }catch(e){
+  document.getElementById('status').textContent='UNAVAILABLE';
+ }
+}
+updateStatus();
+setInterval(updateStatus,5000);
+
+const canvas=document.getElementById('matrix');
+const ctx=canvas.getContext('2d');
+let drops=[];
+function resize(){
+ canvas.width=innerWidth;
+ canvas.height=innerHeight;
+ drops=Array(Math.floor(canvas.width/17)).fill(1);
+}
+resize();
+window.addEventListener('resize',resize);
+function draw(){
+ ctx.fillStyle='rgba(0,0,0,0.08)';
+ ctx.fillRect(0,0,canvas.width,canvas.height);
+ ctx.fillStyle='#00ff88';
+ ctx.font='14px monospace';
+ drops.forEach((y,i)=>{
+  ctx.fillText(Math.random()>0.5?'1':'0',i*17,y*17);
+  if(y*17>canvas.height && Math.random()>.975)drops[i]=0;
+  drops[i]++;
+ });
+}
+setInterval(draw,45);
+</script>
+</body>
+</html>`);
+});
+
+app.get("/api/status", (req, res) => {
+  res.json({
+    bot: botStatus,
+    server: "ONLINE",
+    name: CONFIG.name,
+    owner: CONFIG.owner,
+    uptime: Math.floor((Date.now() - startTime) / 1000)
+  });
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("WEB SERVER RUNNING ON PORT " + PORT);
+});
+
+// =================================
+// WHATSAPP BOT
+// =================================
+
+let reconnecting = false;
+
+async function startBot() {
+  if (reconnecting) return;
+  reconnecting = true;
+
+  try {
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+
+    const { state, saveCreds } =
+      await useMultiFileAuthState(AUTH_DIR);
+
+    const sock = makeWASocket({
+      auth: state,
+      logger: P({ level: "silent" }),
+      browser: ["DARK-NODE-BOT", "Chrome", "2.0"],
+      markOnlineOnConnect: false,
+      syncFullHistory: false
+    });
+
+    sock.ev.on("creds.update", saveCreds);
+
+    sock.ev.on("connection.update", async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        console.log("\nSCAN THIS WHATSAPP QR CODE:\n");
+        qrcode.generate(qr, { small: true });
+      }
+
+      if (connection === "connecting") {
+        botStatus = "CONNECTING";
+        console.log("[*] Connecting...");
+      }
+
+      if (connection === "open") {
+        botStatus = "ONLINE";
+        connectedNumber = sock.user?.id || null;
+        reconnecting = false;
+
+        console.log("================================");
+        console.log(" DARK-NODE-BOT IS ONLINE");
+        console.log(" CREATOR: VENURA");
+        console.log("================================");
+      }
+
+      if (connection === "close") {
+        botStatus = "OFFLINE";
+        connectedNumber = null;
+
+        const code = lastDisconnect?.error?.output?.statusCode;
+        reconnecting = false;
+
+        if (code !== DisconnectReason.loggedOut) {
+          console.log("[!] Reconnecting in 5 seconds...");
+          setTimeout(startBot, 5000);
+        } else {
+          console.log("[!] Logged out. New QR login required.");
+        }
+      }
+    });
+
+    // =================================
+    // MESSAGE COMMANDS
+    // =================================
+
+    sock.ev.on("messages.upsert", async ({ messages, type }) => {
+      if (type !== "notify") return;
+
+      for (const msg of messages) {
+        if (!msg.message || msg.key.fromMe) continue;
+
+        const from = msg.key.remoteJid;
+
+        if (!from || from === "status@broadcast") continue;
+
+        const message = msg.message;
+        const body =
+          message.conversation ||
+          message.extendedTextMessage?.text ||
+          message.imageMessage?.caption ||
+          message.videoMessage?.caption ||
+          "";
+
+        if (!body.startsWith(CONFIG.prefix)) continue;
+
+        const args = body.slice(CONFIG.prefix.length)
+          .trim().split(/\s+/);
+
+        const cmd = args.shift()?.toLowerCase();
+
+        console.log("[COMMAND]", cmd);
+
+        let reply;
+
+        switch (cmd) {
+          case "menu":
+          case "help":
+            reply =
+`╭━━━〔 🖤 DARK NODE 〕━━━╮
+┃
+┃ 🤖 ${CONFIG.name}
+┃ 👑 OWNER: ${CONFIG.owner}
+┃ 🟢 STATUS: ${botStatus}
+┃
+╭━━━〔 COMMANDS 〕━━━╮
+┃ .menu
+┃ .ping
+┃ .alive
+┃ .owner
+┃ .about
+┃ .channel
+┃ .time
+╰━━━━━━━━━━━━━━━━╯
+⚡ POWERED BY VENURA
+╰━━━━━━━━━━━━━━━━━━╯`;
+            break;
+
+          case "ping":
+            reply = "⚡ PONG!\n🟢 DARK NODE IS ACTIVE.";
+            break;
+
+          case "alive":
+            reply =
+`🖤 DARK-NODE-BOT
+
+🟢 Status: ${botStatus}
+👑 Creator: ${CONFIG.owner}
+⚡ Version: 2.0 PRO`;
+            break;
+
+          case "owner":
+            reply =
+`👑 BOT CREATOR
+
+Name: ${CONFIG.owner}
+Number: +${CONFIG.number}
+Bot: ${CONFIG.name}
+
+WhatsApp: https://wa.me/${CONFIG.number}`;
+            break;
+
+          case "about":
+            reply =
+`🖤 ${CONFIG.name}
+
+Advanced WhatsApp Assistant.
+Created by ${CONFIG.owner}.
+Version: 2.0 PRO`;
+            break;
+
+          case "channel":
+            reply =
+`💚 OFFICIAL WHATSAPP CHANNEL
+
+Follow our channel here:
+
+${CONFIG.channel}
+
+Thanks for supporting ${CONFIG.name}!`;
+            break;
+
+          case "time":
+            reply =
+              "🕒 Sri Lanka Time:\n" +
+              new Date().toLocaleString("en-US", {
+                timeZone: "Asia/Colombo"
+              });
+            break;
+
+          default:
+            reply = "❌ Unknown command.\nType .menu";
         }
 
-        sock.ev.on('creds.update', saveCreds);
-
-        sock.ev.on('connection.update', async (update) => {
-            const { connection } = update;
-            if (connection === 'open') {
-                botStatus = "Connected Successfully! 🚀";
-                console.log('Bot Connected Successfully!');
-            }
-        });
-    } catch (err) {
-        console.log("Pairing error:", err);
-        if (res && !res.headersSent) {
-            return res.json({ status: "error", message: "Failed to generate. Try again." });
+        if (reply) {
+          try {
+            await sock.sendMessage(from, {
+              text: reply
+            }, { quoted: msg });
+          } catch (error) {
+            console.error("MESSAGE ERROR:", error.message);
+          }
         }
-    }
+      }
+    });
+
+  } catch (error) {
+    console.error("START ERROR:", error);
+    botStatus = "ERROR";
+    reconnecting = false;
+    setTimeout(startBot, 10000);
+  }
 }
 
-// Hacker / Matrix Cyberpunk UI with Large Card & Animations
-app.get('/', (req, res) => {
-    res.send(`
-        <html>
-        <head>
-            <title>Dark-Node-Bot - Cyber Panel</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body { font-family: 'Courier New', Courier, monospace; background: #02040a; color: #00ff66; text-align: center; padding: 15px; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-                
-                /* Matrix rain background effect simulation */
-                .matrix-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #05110e 0%, #02040a 100%); z-index: -1; }
-                
-                .card { background: rgba(5, 15, 12, 0.9); padding: 40px 25px; border-radius: 20px; width: 100%; max-width: 450px; box-shadow: 0 0 30px rgba(0, 255, 102, 0.2); border: 2px solid #00ff66; position: relative; backdrop-filter: blur(10px); animation: pulseBorder 3s infinite; }
-                
-                @keyframes pulseBorder { 0% { border-color: #00ff66; box-shadow: 0 0 20px rgba(0, 255, 102, 0.2); } 50% { border-color: #00b3ff; box-shadow: 0 0 30px rgba(0, 179, 255, 0.4); } 100% { border-color: #00ff66; box-shadow: 0 0 20px rgba(0, 255, 102, 0.2); } }
-                
-                h2 { color: #00ff66; margin-bottom: 8px; font-size: 28px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,255,102,0.6); }
-                p { color: #8fa39b; font-size: 13px; margin-bottom: 30px; letter-spacing: 1px; }
-                
-                input { width: 90%; padding: 16px; margin: 12px 0; border-radius: 10px; border: 1px solid #00ff66; background: #000; color: #00ff66; font-size: 18px; outline: none; text-align: center; letter-spacing: 2px; font-family: 'Courier New', Courier, monospace; box-shadow: inset 0 0 10px rgba(0,255,102,0.2); transition: 0.3s; }
-                input:focus { border-color: #00b3ff; box-shadow: 0 0 15px rgba(0, 179, 255, 0.6); color: #00b3ff; }
-                
-                button { background: linear-gradient(135deg, #00ff66, #008833); color: #000; border: none; padding: 16px 20px; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; width: 100%; margin-top: 15px; transition: 0.3s; box-shadow: 0 0 15px rgba(0, 255, 102, 0.4); text-transform: uppercase; letter-spacing: 1px; }
-                button:hover { background: linear-gradient(135deg, #00b3ff, #0066aa); color: #fff; box-shadow: 0 0 25px rgba(0, 179, 255, 0.7); transform: scale(1.02); }
-                
-                .code-box { font-size: 30px; color: #00b3ff; font-weight: bold; margin-top: 25px; background: #000; padding: 18px; border-radius: 10px; border: 2px dashed #00b3ff; letter-spacing: 4px; display: none; word-break: break-all; text-shadow: 0 0 12px rgba(0,179,255,0.8); }
-                
-                .copy-btn { background: linear-gradient(135deg, #00b3ff, #0044aa); color: white; margin-top: 15px; display: none; padding: 12px; font-size: 15px; }
-                
-                .status { margin-top: 25px; font-size: 14px; color: #00ff66; font-weight: bold; background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px; border: 1px solid #00ff66; letter-spacing: 1px; }
-                
-                .spinner { display: none; width: 45px; height: 45px; border: 5px solid #000; border-top: 5px solid #00ff66; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 20px auto 0 auto; box-shadow: 0 0 10px #00ff66; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-            </style>
-        </head>
-        <body>
-            <div class="matrix-bg"></div>
-            <div class="card">
-                <h2>⚡ DARK-NODE-BOT ⚡</h2>
-                <p>[ SECURE WHATSAPP PAIRING INTERFACE ]</p>
-                <form id="pairForm">
-                    <input type="text" id="phone" placeholder="9477xxxxxxx" required />
-                    <button type="submit" id="submitBtn">Execute Pairing</button>
-                </form>
-                <div class="spinner" id="loadingSpinner"></div>
-                <div class="status" id="statusText">STATUS: ${botStatus}</div>
-                <div class="code-box" id="codeBox"></div>
-                <button class="copy-btn" id="copyBtn" onclick="copyCode()">📋 COPY PAIRING CODE</button>
-            </div>
-
-            <script>
-                document.getElementById('pairForm').addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const phone = document.getElementById('phone').value;
-                    const btn = document.getElementById('submitBtn');
-                    const spinner = document.getElementById('loadingSpinner');
-                    const statusText = document.getElementById('statusText');
-                    const codeBox = document.getElementById('codeBox');
-                    const copyBtn = document.getElementById('copyBtn');
-
-                    btn.style.display = 'none';
-                    spinner.style.display = 'block';
-                    statusText.innerText = "STATUS: Connecting to Matrix & Requesting Code...";
-                    codeBox.style.display = 'none';
-                    copyBtn.style.display = 'none';
-
-                    try {
-                        const response = await fetch('/pair', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ phone: phone })
-                        });
-                        const data = await response.json();
-                        spinner.style.display = 'none';
-                        if(data.status === 'success') {
-                            statusText.innerText = "STATUS: SUCCESS! Code Acquired.";
-                            codeBox.innerText = data.code;
-                            codeBox.style.display = 'block';
-                            copyBtn.style.display = 'block';
-                        } else {
-                            statusText.innerText = "STATUS: ERROR. Retry Execution.";
-                            btn.style.display = 'block';
-                        }
-                    } catch(err) {
-                        spinner.style.display = 'none';
-                        btn.style.display = 'block';
-                        statusText.innerText = "STATUS: NETWORK TIMEOUT. Retry.";
-                    }
-                });
-
-                function copyCode() {
-                    const codeText = document.getElementById('codeBox').innerText;
-                    navigator.clipboard.writeText(codeText);
-                    document.getElementById('copyBtn').innerText = "✅ COPIED TO CLIPBOARD!";
-                    setTimeout(() => {
-                        document.getElementById('copyBtn').innerText = "📋 COPY PAIRING CODE";
-                    }, 2000);
-                }
-            </script>
-        </body>
-        </html>
-    `);
-});
-
-app.post('/pair', async (req, res) => {
-    const phoneNumber = req.body.phone;
-    if (!phoneNumber) {
-        return res.json({ status: "error", message: "Phone number required" });
-    }
-    await startBot(phoneNumber, res);
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+console.log("DARK-NODE-BOT PRO INITIALIZING...");
+startBot();
