@@ -9,9 +9,9 @@ import qrcode from "qrcode-terminal";
 import fs from "fs";
 import path from "path";
 
-// =================================
-// DARK NODE BOT PRO CONFIGURATION
-// =================================
+// ======================================
+// DARK-NODE-BOT PRO CONFIG
+// ======================================
 
 const CONFIG = {
   name: "DARK-NODE-BOT",
@@ -26,12 +26,12 @@ const PORT = process.env.PORT || 3000;
 const AUTH_DIR = path.resolve(process.env.AUTH_DIR || "./session");
 
 let botStatus = "STARTING";
-let connectedNumber = null;
 let startTime = Date.now();
+let reconnectTimer = null;
 
-// =================================
-// WEB SERVER
-// =================================
+// ======================================
+// EXPRESS WEB SERVER
+// ======================================
 
 const app = express();
 
@@ -41,18 +41,35 @@ app.get("/", (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DARK NODE BOT PRO</title>
+<title>DARK-NODE-BOT PRO</title>
+
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;background:#030807;color:#00ff88;
- font-family:Arial,sans-serif;overflow-x:hidden;
+ margin:0;
+ background:#030807;
+ color:#00ff88;
+ font-family:Arial,sans-serif;
+ overflow-x:hidden;
 }
-canvas{position:fixed;inset:0;z-index:-1;opacity:.3}
-.container{max-width:850px;margin:auto;padding:25px 16px}
-header{text-align:center;padding:35px 10px}
+canvas{
+ position:fixed;
+ inset:0;
+ z-index:-1;
+ opacity:.3;
+}
+.container{
+ max-width:850px;
+ margin:auto;
+ padding:25px 16px;
+}
+header{
+ text-align:center;
+ padding:35px 10px;
+}
 .logo{
- font-size:45px;font-weight:900;
+ font-size:45px;
+ font-weight:900;
  text-shadow:0 0 20px #00ff88;
  animation:glow 2s infinite alternate;
 }
@@ -60,36 +77,70 @@ header{text-align:center;padding:35px 10px}
  from{text-shadow:0 0 5px #00ff88}
  to{text-shadow:0 0 30px #00ff88,0 0 50px #00ff88}
 }
-.subtitle{color:#8bffbd;letter-spacing:5px}
+.subtitle{
+ color:#8bffbd;
+ letter-spacing:5px;
+}
 .card{
- background:rgba(0,20,12,.88);
+ background:rgba(0,20,12,.9);
  border:1px solid #00ff8860;
- border-radius:15px;padding:22px;
+ border-radius:15px;
+ padding:22px;
  margin:18px 0;
  box-shadow:0 0 20px #00ff8810;
+ animation:appear .8s ease;
+}
+@keyframes appear{
+ from{opacity:0;transform:translateY(20px)}
+ to{opacity:1;transform:translateY(0)}
 }
 h2{color:#00ff88}
-.status{font-size:20px;font-weight:bold}
+.status{
+ font-size:20px;
+ font-weight:bold;
+}
 .dot{
- display:inline-block;width:10px;height:10px;
- border-radius:50%;background:#00ff88;
- box-shadow:0 0 12px #00ff88;margin-right:8px;
+ display:inline-block;
+ width:10px;
+ height:10px;
+ border-radius:50%;
+ background:#00ff88;
+ box-shadow:0 0 12px #00ff88;
+ margin-right:8px;
 }
 .btn{
- display:block;text-align:center;
- padding:15px;margin-top:14px;
- background:#00ff88;color:#001b10;
- text-decoration:none;font-weight:bold;
- border-radius:9px;transition:.3s;
+ display:block;
+ text-align:center;
+ padding:15px;
+ margin-top:14px;
+ background:#00ff88;
+ color:#001b10;
+ text-decoration:none;
+ font-weight:bold;
+ border-radius:9px;
+ transition:.3s;
 }
-.btn:hover{background:#fff;transform:scale(1.03)}
-.info{color:#b7e9cd;line-height:2}
-footer{text-align:center;color:#568a70;padding:30px}
+.btn:hover{
+ background:white;
+ transform:scale(1.03);
+}
+.info{
+ color:#b7e9cd;
+ line-height:2;
+}
+footer{
+ text-align:center;
+ color:#568a70;
+ padding:30px;
+}
 </style>
 </head>
+
 <body>
 <canvas id="matrix"></canvas>
+
 <div class="container">
+
 <header>
 <div class="logo">DARK-NODE</div>
 <div class="subtitle">BOT PRO SYSTEM</div>
@@ -97,15 +148,20 @@ footer{text-align:center;color:#568a70;padding:30px}
 </header>
 
 <div class="card">
-<h2> SYSTEM STATUS</h2>
-<p class="status"><span class="dot"></span><span id="status">CHECKING...</span></p>
-<p class="info">Server: <span id="server">ONLINE</span></p>
-<p class="info">Bot: DARK-NODE-BOT</p>
-<p class="info">Version: 2.0 PRO</p>
+<h2>⚡ SYSTEM STATUS</h2>
+<p class="status">
+<span class="dot"></span>
+<span id="status">CHECKING...</span>
+</p>
+<p class="info">
+Server: <span id="server">CHECKING...</span><br>
+Bot: DARK-NODE-BOT<br>
+Version: 2.0 PRO
+</p>
 </div>
 
 <div class="card">
-<h2> CREATOR PROFILE</h2>
+<h2>👑 CREATOR PROFILE</h2>
 <p class="info">
 Name: VENURA<br>
 Role: BOT CREATOR<br>
@@ -115,15 +171,20 @@ Country: Sri Lanka
 </div>
 
 <div class="card">
-<h2> WHATSAPP COMMUNITY</h2>
-<p class="info">Join our official WhatsApp Channel.</p>
-<a class="btn" href="${CONFIG.channel}" target="_blank">
+<h2>💚 WHATSAPP CHANNEL</h2>
+<p class="info">
+Join our official WhatsApp Channel.
+</p>
+<a class="btn"
+href="${CONFIG.channel}"
+target="_blank"
+rel="noopener noreferrer">
 JOIN WHATSAPP CHANNEL
 </a>
 </div>
 
 <div class="card">
-<h2> BOT COMMANDS</h2>
+<h2>🤖 BOT COMMANDS</h2>
 <p class="info">
 .menu - Show all commands<br>
 .ping - Check response<br>
@@ -140,6 +201,7 @@ DARK-NODE-BOT PRO<br>
 CREATED BY VENURA<br>
 © 2026
 </footer>
+
 </div>
 
 <script>
@@ -147,70 +209,92 @@ async function updateStatus(){
  try{
   const r=await fetch('/api/status');
   const d=await r.json();
+
   document.getElementById('status').textContent=d.bot;
   document.getElementById('server').textContent=d.server;
+
+  const dot=document.querySelector('.dot');
+  dot.style.background=d.bot==='ONLINE'?'#00ff88':'#ffaa00';
  }catch(e){
   document.getElementById('status').textContent='UNAVAILABLE';
+  document.getElementById('server').textContent='CHECK CONNECTION';
  }
 }
+
 updateStatus();
 setInterval(updateStatus,5000);
 
 const canvas=document.getElementById('matrix');
 const ctx=canvas.getContext('2d');
 let drops=[];
+
 function resize(){
- canvas.width=innerWidth;
- canvas.height=innerHeight;
+ canvas.width=window.innerWidth;
+ canvas.height=window.innerHeight;
  drops=Array(Math.floor(canvas.width/17)).fill(1);
 }
+
 resize();
 window.addEventListener('resize',resize);
+
 function draw(){
  ctx.fillStyle='rgba(0,0,0,0.08)';
  ctx.fillRect(0,0,canvas.width,canvas.height);
  ctx.fillStyle='#00ff88';
  ctx.font='14px monospace';
+
  drops.forEach((y,i)=>{
-  ctx.fillText(Math.random()>0.5?'1':'0',i*17,y*17);
-  if(y*17>canvas.height && Math.random()>.975)drops[i]=0;
+  ctx.fillText(Math.random()>.5?'1':'0',i*17,y*17);
+
+  if(y*17>canvas.height && Math.random()>.975){
+   drops[i]=0;
+  }
   drops[i]++;
  });
 }
+
 setInterval(draw,45);
 </script>
+
 </body>
 </html>`);
 });
 
+// STATUS API
+
 app.get("/api/status", (req, res) => {
   res.json({
-    bot: botStatus,
-    server: "ONLINE",
     name: CONFIG.name,
     owner: CONFIG.owner,
-    uptime: Math.floor((Date.now() - startTime) / 1000)
+    bot: botStatus,
+    server: "ONLINE",
+    uptime: Math.floor((Date.now()-startTime)/1000)
   });
 });
 
+// HEALTH CHECK
+
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({
+    status: "ok",
+    bot: botStatus
+  });
 });
+
+// START SERVER ONLY ONCE
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log("WEB SERVER RUNNING ON PORT " + PORT);
+  console.log("================================");
+  console.log(" DARK NODE WEB SERVER STARTED");
+  console.log(" PORT: " + PORT);
+  console.log("================================");
 });
 
-// =================================
-// WHATSAPP BOT
-// =================================
-
-let reconnecting = false;
+// ======================================
+// WHATSAPP CONNECTION
+// ======================================
 
 async function startBot() {
-  if (reconnecting) return;
-  reconnecting = true;
-
   try {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
 
@@ -227,23 +311,21 @@ async function startBot() {
 
     sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("connection.update", async (update) => {
+    sock.ev.on("connection.update", (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        console.log("\nSCAN THIS WHATSAPP QR CODE:\n");
+        console.log("\nSCAN WHATSAPP QR CODE:\n");
         qrcode.generate(qr, { small: true });
       }
 
       if (connection === "connecting") {
         botStatus = "CONNECTING";
-        console.log("[*] Connecting...");
+        console.log("[*] Connecting WhatsApp...");
       }
 
       if (connection === "open") {
         botStatus = "ONLINE";
-        connectedNumber = sock.user?.id || null;
-        reconnecting = false;
 
         console.log("================================");
         console.log(" DARK-NODE-BOT IS ONLINE");
@@ -253,23 +335,28 @@ async function startBot() {
 
       if (connection === "close") {
         botStatus = "OFFLINE";
-        connectedNumber = null;
 
-        const code = lastDisconnect?.error?.output?.statusCode;
-        reconnecting = false;
+        const code =
+          lastDisconnect?.error?.output?.statusCode;
+
+        console.log("[!] Connection closed:", code);
 
         if (code !== DisconnectReason.loggedOut) {
-          console.log("[!] Reconnecting in 5 seconds...");
-          setTimeout(startBot, 5000);
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              startBot();
+            }, 5000);
+          }
         } else {
           console.log("[!] Logged out. New QR login required.");
         }
       }
     });
 
-    // =================================
-    // MESSAGE COMMANDS
-    // =================================
+    // ==================================
+    // MESSAGE HANDLER
+    // ==================================
 
     sock.ev.on("messages.upsert", async ({ messages, type }) => {
       if (type !== "notify") return;
@@ -282,6 +369,7 @@ async function startBot() {
         if (!from || from === "status@broadcast") continue;
 
         const message = msg.message;
+
         const body =
           message.conversation ||
           message.extendedTextMessage?.text ||
@@ -296,13 +384,17 @@ async function startBot() {
 
         const cmd = args.shift()?.toLowerCase();
 
+        if (!cmd) continue;
+
         console.log("[COMMAND]", cmd);
 
-        let reply;
+        let reply = "";
 
         switch (cmd) {
+
           case "menu":
           case "help":
+
             reply =
 `╭━━━〔 🖤 DARK NODE 〕━━━╮
 ┃
@@ -319,15 +411,22 @@ async function startBot() {
 ┃ .channel
 ┃ .time
 ╰━━━━━━━━━━━━━━━━╯
+
 ⚡ POWERED BY VENURA
 ╰━━━━━━━━━━━━━━━━━━╯`;
             break;
 
           case "ping":
-            reply = "⚡ PONG!\n🟢 DARK NODE IS ACTIVE.";
+
+            reply =
+`⚡ PONG!
+
+🟢 DARK NODE IS ACTIVE.
+🤖 ${CONFIG.name}`;
             break;
 
           case "alive":
+
             reply =
 `🖤 DARK-NODE-BOT
 
@@ -337,6 +436,7 @@ async function startBot() {
             break;
 
           case "owner":
+
             reply =
 `👑 BOT CREATOR
 
@@ -348,6 +448,7 @@ WhatsApp: https://wa.me/${CONFIG.number}`;
             break;
 
           case "about":
+
             reply =
 `🖤 ${CONFIG.name}
 
@@ -357,6 +458,7 @@ Version: 2.0 PRO`;
             break;
 
           case "channel":
+
             reply =
 `💚 OFFICIAL WHATSAPP CHANNEL
 
@@ -368,36 +470,48 @@ Thanks for supporting ${CONFIG.name}!`;
             break;
 
           case "time":
+
             reply =
-              "🕒 Sri Lanka Time:\n" +
-              new Date().toLocaleString("en-US", {
-                timeZone: "Asia/Colombo"
-              });
+"🕒 Sri Lanka Time:\n" +
+new Date().toLocaleString("en-US", {
+  timeZone: "Asia/Colombo"
+});
             break;
 
           default:
-            reply = "❌ Unknown command.\nType .menu";
+
+            reply =
+"❌ Unknown command.\nType .menu to see commands.";
         }
 
-        if (reply) {
-          try {
-            await sock.sendMessage(from, {
-              text: reply
-            }, { quoted: msg });
-          } catch (error) {
-            console.error("MESSAGE ERROR:", error.message);
-          }
+        try {
+          await sock.sendMessage(from, {
+            text: reply
+          }, {
+            quoted: msg
+          });
+        } catch (error) {
+          console.error("[MESSAGE ERROR]", error.message);
         }
       }
     });
 
   } catch (error) {
-    console.error("START ERROR:", error);
+    console.error("[START ERROR]", error);
     botStatus = "ERROR";
-    reconnecting = false;
-    setTimeout(startBot, 10000);
+
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        startBot();
+      }, 10000);
+    }
   }
 }
+
+// ======================================
+// START DARK NODE BOT
+// ======================================
 
 console.log("DARK-NODE-BOT PRO INITIALIZING...");
 startBot();
