@@ -2,9 +2,9 @@
 {
   "name": "dark-node-bot",
   "version": "2.0.0",
-  "description": "DARK-NODE-BOT PRO - WhatsApp Bot by Venura",
+  "description": "DARK-NODE-BOT PRO by Venura",
   "main": "index.js",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
