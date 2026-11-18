@@ -1,15 +1,33 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
+const readline = require('readline');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const question = (text) => new Promise((resolve) => rl.question(text, resolve));
 
 async function startBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_darknode');
     
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
+        printQRInTerminal: false, // QR code එක පෙන්වන එක off කර ඇත
         auth: state
     });
+
+    // Pairing Code එක ලබා ගැනීම සඳහා අංකය ඇතුළත් කිරීම
+    if (!sock.authState.creds.registered) {
+        const phoneNumber = await question('\n📱 Enter your WhatsApp phone number (with country code, e.g., 947xxxxxxxx): ');
+        await delay(3000);
+        try {
+            const code = await sock.requestPairingCode(phoneNumber.trim());
+            console.log(`\n========================================`);
+            console.log(`🔑 YOUR PAIRING CODE IS: ${code}`);
+            console.log(`========================================\n`);
+        } catch (error) {
+            console.error('Failed to get pairing code, please restart.', error);
+        }
+    }
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
@@ -39,7 +57,7 @@ async function startBot() {
 ┃ 👑 Owner : Venura Bashitha
 ┃ ⚙️ Mode : PUBLIC
 ┃ 🎛️ Prefix : .
-┃ 📢 Channel : https://whatsapp.com/channel/0029VbENCSjEgGfKGzoqxw2X
+┃ 📢 Channel : https://whatsapp.com/channel/0029VbENCSjEgGkGzC5j5w2U
 ╰━━━━━━━━━━━━━━━⊷
 
 👋 **සාදරයෙන් පිළිගනිමු! Dark_Node bot සේවාවට ඔබව සාදරයෙන් පිළිගනිමු.** 
@@ -61,11 +79,10 @@ async function startBot() {
         }
         else if (cmd === '.channel' || cmd === '.ch') {
             await sock.sendMessage(sender, { 
-                text: '📢 **Join our official WhatsApp Channel:**\n[ඔයාගේ WhatsApp Channel Link එක දාන්න]\n\nඅලුත්ම updates ලබා ගැනීමට අපගේ channel එකோடு இணைந்திருங்கள்!' 
+                text: '📢 **Join our official WhatsApp Channel:**\nhttps://whatsapp.com/channel/0029VbENCSjEgGkGzC5j5w2U\n\nඅලුත්ම updates ලබා ගැනීමට අපගේ channel එකோடு இணைந்திருங்கள்!' 
             });
         }
     });
 }
 
 startBot();
-
