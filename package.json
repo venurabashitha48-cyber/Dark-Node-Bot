@@ -1,0 +1,15 @@
+{
+  "name": "dark-node-bot",
+  "version": "1.0.0",
+  "description": "Dark_Node WhatsApp Bot by Venura Bashitha",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.5",
+    "@hapi/boom": "^10.0.1",
+    "pino": "^8.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
